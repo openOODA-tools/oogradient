@@ -1,0 +1,100 @@
+// # Color Gradient Interpolation Engine
+//
+// Logline: Calculates smooth TrueColor transitions across multi-stop color ramps and text spans.
+//
+// Setup: Pure mathematical linear interpolation algorithms operating on RGB color vectors.
+//
+// Beats:
+//   1. Perform bounded integer linear interpolation (lerp) between channel extremes.
+//   2. Compute smooth multi-stop color ramps for arbitrary discrete step counts.
+//   3. Apply horizontal character-by-character gradient transitions along text lines.
+//   4. Apply vertical line-by-line gradient transitions across multi-line blocks.
+
+import "color_types.oo";
+
+fn lerp_val(a: Int, b: Int, step: Int, total: Int) -> Int {
+    if total <= 1 {
+        return a;
+    }
+    let diff: Int = b - a;
+    return a + (diff * step) / (total - 1);
+}
+
+pub fn interpolate_two_colors(c1: RgbColor, c2: RgbColor, step: Int, total: Int) -> RgbColor {
+    let r: Int = lerp_val(c1.r, c2.r, step, total);
+    let g: Int = lerp_val(c1.g, c2.g, step, total);
+    let b: Int = lerp_val(c1.b, c2.b, step, total);
+    return make_rgb(r, g, b);
+}
+
+pub fn generate_gradient_ramp(stops: List[RgbColor], steps: Int) -> List[RgbColor] {
+    let mut ramp: List[RgbColor] = list_new();
+    let n_stops: Int = list_len(stops);
+
+    if n_stops == 0 {
+        return ramp;
+    }
+    if n_stops == 1 || steps <= 1 {
+        let first: RgbColor = list_get(stops, 0);
+        let mut si: Int = 0;
+        while si < steps {
+            ramp = list_push(ramp, first);
+            si = si + 1;
+        }
+        return ramp;
+    }
+
+    let n_segments: Int = n_stops - 1;
+    let mut i: Int = 0;
+
+    while i < steps {
+        let seg_idx: Int = (i * n_segments) / (steps - 1);
+        let cur_seg: Int = if seg_idx >= n_segments { n_segments - 1 } else { seg_idx };
+
+        let start_color: RgbColor = list_get(stops, cur_seg);
+        let end_color: RgbColor = list_get(stops, cur_seg + 1);
+
+        let seg_start_step: Int = (cur_seg * (steps - 1)) / n_segments;
+        let seg_end_step: Int = ((cur_seg + 1) * (steps - 1)) / n_segments;
+        let seg_total_steps: Int = seg_end_step - seg_start_step + 1;
+        let seg_step: Int = i - seg_start_step;
+
+        let col: RgbColor = interpolate_two_colors(start_color, end_color, seg_step, seg_total_steps);
+        ramp = list_push(ramp, col);
+        i = i + 1;
+    }
+
+    return ramp;
+}
+
+pub fn build_horizontal_span(line: String, stops: List[RgbColor]) -> GradientSpan {
+    let n_chars: Int = chars_len(line);
+    let colors: List[RgbColor] = generate_gradient_ramp(stops, if n_chars > 0 { n_chars } else { 1 });
+    return GradientSpan {
+        text: line,
+        colors: colors
+    };
+}
+
+pub fn build_vertical_spans(lines: List[String], stops: List[RgbColor]) -> List[GradientSpan] {
+    let mut spans: List[GradientSpan] = list_new();
+    let n_lines: Int = list_len(lines);
+    let ramp: List[RgbColor] = generate_gradient_ramp(stops, if n_lines > 0 { n_lines } else { 1 });
+
+    let mut li: Int = 0;
+    while li < n_lines {
+        let text_line: String = list_get(lines, li);
+        let line_color: RgbColor = list_get(ramp, li);
+        let mut char_colors: List[RgbColor] = list_new();
+        let n_chars: Int = chars_len(text_line);
+        let mut ci: Int = 0;
+        while ci < n_chars {
+            char_colors = list_push(char_colors, line_color);
+            ci = ci + 1;
+        }
+        spans = list_push(spans, GradientSpan { text: text_line, colors: char_colors });
+        li = li + 1;
+    }
+
+    return spans;
+}

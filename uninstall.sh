@@ -4,7 +4,7 @@
 # "Removes oogradient binary, package installations, and cache."
 #
 # Usage:
-#   curl -fsSL https://openooda-toogradient.github.io/oogradient/uninstall.sh | bash
+#   curl -fsSL https://openooda-tools.github.io/oogradient/uninstall.sh | bash
 #   or: ./uninstall.sh [options]
 #
 # Options:

@@ -1,0 +1,97 @@
+// # Color and Gradient Data Types
+//
+// Logline: Data structures representing 24-bit RGB colors, multi-stop palettes, and gradient spans.
+//
+// Setup: Pure color model declarations and hexadecimal color conversion utilities.
+//
+// Beats:
+//   1. Declare core RgbColor model with red, green, and blue 8-bit color channels.
+//   2. Declare GradientPreset model capturing named multi-stop color ramps.
+//   3. Declare GradientSpan model mapping text character sequences to color lists.
+//   4. Provide hexadecimal color parser and RGB-to-hex formatters.
+
+pub type RgbColor = struct {
+    r: Int,
+    g: Int,
+    b: Int
+};
+
+pub type GradientPreset = struct {
+    name: String,
+    stops: List[RgbColor],
+    description: String
+};
+
+pub type GradientSpan = struct {
+    text: String,
+    colors: List[RgbColor]
+};
+
+pub fn make_rgb(red: Int, green: Int, blue: Int) -> RgbColor {
+    let r_clamped: Int = if red < 0 { 0 } else if red > 255 { 255 } else { red };
+    let g_clamped: Int = if green < 0 { 0 } else if green > 255 { 255 } else { green };
+    let b_clamped: Int = if blue < 0 { 0 } else if blue > 255 { 255 } else { blue };
+    return RgbColor {
+        r: r_clamped,
+        g: g_clamped,
+        b: b_clamped
+    };
+}
+
+pub fn make_preset(p_name: String, p_stops: List[RgbColor], desc: String) -> GradientPreset {
+    return GradientPreset {
+        name: p_name,
+        stops: p_stops,
+        description: desc
+    };
+}
+
+fn hex_char_to_val(ch: String) -> Int {
+    if ch == "0" { return 0; }
+    if ch == "1" { return 1; }
+    if ch == "2" { return 2; }
+    if ch == "3" { return 3; }
+    if ch == "4" { return 4; }
+    if ch == "5" { return 5; }
+    if ch == "6" { return 6; }
+    if ch == "7" { return 7; }
+    if ch == "8" { return 8; }
+    if ch == "9" { return 9; }
+    if ch == "a" || ch == "A" { return 10; }
+    if ch == "b" || ch == "B" { return 11; }
+    if ch == "c" || ch == "C" { return 12; }
+    if ch == "d" || ch == "D" { return 13; }
+    if ch == "e" || ch == "E" { return 14; }
+    if ch == "f" || ch == "F" { return 15; }
+    return 0;
+}
+
+pub fn parse_hex_color(hex_str: String) -> RgbColor {
+    let mut raw: String = str_trim(hex_str);
+    if str_starts_with(raw, "#") {
+        raw = str_slice(raw, 1, chars_len(raw));
+    } else if str_starts_with(raw, "0x") || str_starts_with(raw, "0X") {
+        raw = str_slice(raw, 2, chars_len(raw));
+    }
+
+    if chars_len(raw) < 6 {
+        return make_rgb(255, 255, 255);
+    }
+
+    let r_val: Int = hex_char_to_val(str_slice(raw, 0, 1)) * 16 + hex_char_to_val(str_slice(raw, 1, 2));
+    let g_val: Int = hex_char_to_val(str_slice(raw, 2, 3)) * 16 + hex_char_to_val(str_slice(raw, 3, 4));
+    let b_val: Int = hex_char_to_val(str_slice(raw, 4, 5)) * 16 + hex_char_to_val(str_slice(raw, 5, 6));
+
+    return make_rgb(r_val, g_val, b_val);
+}
+
+fn byte_to_hex_pair(v: Int) -> String {
+    let hex_digits: String = "0123456789abcdef";
+    let hi: Int = (v / 16) % 16;
+    let lo: Int = v % 16;
+    return str_slice(hex_digits, hi, hi + 1) + str_slice(hex_digits, lo, lo + 1);
+}
+
+pub fn rgb_to_hex(c: RgbColor) -> String {
+    return "#" + byte_to_hex_pair(c.r) + byte_to_hex_pair(c.g) + byte_to_hex_pair(c.b);
+}

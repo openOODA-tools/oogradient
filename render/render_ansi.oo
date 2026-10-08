@@ -1,0 +1,83 @@
+// # TrueColor ANSI Gradient Renderer
+//
+// Logline: Applies 24-bit TrueColor ANSI escape sequences across text spans and color swatches.
+//
+// Setup: Pure terminal text formatter with capability-respecting color suppression.
+//
+// Beats:
+//   1. Construct 24-bit ANSI foreground color escape sequences.
+//   2. Render horizontal character-by-character colored text spans.
+//   3. Render multi-line vertical gradient text spans.
+//   4. Generate discrete TrueColor preview color bar blocks.
+
+import "core/color_types.oo";
+import "core/interpolator.oo";
+
+fn ansi_esc() -> String {
+    return bytes_to_str(bytes_push(bytes_new(), 27));
+}
+
+pub fn ansi_fg_truecolor(r: Int, g: Int, b: Int) -> String {
+    return ansi_esc() + "[38;2;" + r.to_string() + ";" + g.to_string() + ";" + b.to_string() + "m";
+}
+
+pub fn ansi_reset() -> String {
+    return ansi_esc() + "[0m";
+}
+
+pub fn render_gradient_span(span: GradientSpan, use_color: Bool) -> String {
+    if !use_color {
+        return span.text;
+    }
+    let n_chars: Int = chars_len(span.text);
+    let n_colors: Int = list_len(span.colors);
+    let mut out: String = "";
+    let mut i: Int = 0;
+
+    while i < n_chars {
+        let ch: String = char_at(span.text, i);
+        if i < n_colors {
+            let col: RgbColor = list_get(span.colors, i);
+            out = out + ansi_fg_truecolor(col.r, col.g, col.b) + ch + ansi_reset();
+        } else {
+            out = out + ch;
+        }
+        i = i + 1;
+    }
+
+    return out;
+}
+
+pub fn render_gradient_spans(spans: List[GradientSpan], use_color: Bool) -> String {
+    let mut out: String = "";
+    let n: Int = list_len(spans);
+    let mut i: Int = 0;
+
+    while i < n {
+        let span: GradientSpan = list_get(spans, i);
+        out = out + render_gradient_span(span, use_color) + "\n";
+        i = i + 1;
+    }
+
+    return out;
+}
+
+pub fn render_color_bar(stops: List[RgbColor], width: Int, use_color: Bool) -> String {
+    let ramp: List[RgbColor] = generate_gradient_ramp(stops, width);
+    let mut out: String = "";
+    let mut i: Int = 0;
+
+    while i < width {
+        if i < list_len(ramp) {
+            let col: RgbColor = list_get(ramp, i);
+            if use_color {
+                out = out + ansi_fg_truecolor(col.r, col.g, col.b) + "█" + ansi_reset();
+            } else {
+                out = out + "#";
+            }
+        }
+        i = i + 1;
+    }
+
+    return out;
+}

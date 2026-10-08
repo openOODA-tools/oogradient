@@ -1,0 +1,65 @@
+// # JSON Formatters and Telemetry Serializer
+//
+// Logline: Formats RGB colors, gradient palettes, and rendered text spans into RFC 8259 JSON metrics.
+//
+// Setup: Pure JSON string generation without external dependencies.
+//
+// Beats:
+//   1. Serialize single RgbColor models with RGB channel values and hex codes.
+//   2. Serialize gradient presets with stop arrays and descriptive metadata.
+//   3. Serialize list of registered gradient presets for inventory introspection.
+//   4. Serialize interpolated color ramps and character spans into structured payloads.
+
+import "core/color_types.oo";
+
+pub fn rgb_to_json(c: RgbColor) -> String {
+    return "{\"r\":" + c.r.to_string()
+        + ",\"g\":" + c.g.to_string()
+        + ",\"b\":" + c.b.to_string()
+        + ",\"hex\":\"" + rgb_to_hex(c) + "\"}";
+}
+
+pub fn ramp_to_json(ramp: List[RgbColor]) -> String {
+    let mut out: String = "[";
+    let n: Int = list_len(ramp);
+    let mut i: Int = 0;
+    while i < n {
+        if i > 0 { out = out + ","; }
+        out = out + rgb_to_json(list_get(ramp, i));
+        i = i + 1;
+    }
+    out = out + "]";
+    return out;
+}
+
+pub fn preset_to_json(p: GradientPreset) -> String {
+    let mut out: String = "{\"name\":\"" + p.name + "\",\"description\":\"" + p.description + "\",\"stops\":[";
+    let n: Int = list_len(p.stops);
+    let mut i: Int = 0;
+    while i < n {
+        if i > 0 { out = out + ","; }
+        out = out + rgb_to_json(list_get(p.stops, i));
+        i = i + 1;
+    }
+    out = out + "]}";
+    return out;
+}
+
+pub fn presets_to_json(presets: List[GradientPreset]) -> String {
+    let mut out: String = "{\"total\":" + list_len(presets).to_string() + ",\"presets\":[";
+    let n: Int = list_len(presets);
+    let mut i: Int = 0;
+    while i < n {
+        if i > 0 { out = out + ","; }
+        out = out + preset_to_json(list_get(presets, i));
+        i = i + 1;
+    }
+    out = out + "]}";
+    return out;
+}
+
+pub fn span_to_json(span: GradientSpan) -> String {
+    return "{\"length\":" + chars_len(span.text).to_string()
+        + ",\"text\":\"" + span.text + "\""
+        + ",\"colors\":" + ramp_to_json(span.colors) + "}";
+}

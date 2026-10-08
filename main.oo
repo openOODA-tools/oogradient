@@ -5,48 +5,130 @@
 // Setup: Demands explicit capability tokens and standard argument list.
 //
 // Beats:
-//   1. Parse command-line options and dispatch --help, --version, or --mcp.
-//   2. Execute capability-bounded oogradient operations.
-//   3. Format and output structured results to standard output.
+//   1. Parse command-line options and dispatch --help, --version, --test, --demo, or --mcp.
+//   2. Resolve multi-stop gradient presets or custom dual-endpoint hex color bounds.
+//   3. Interpolate discrete TrueColor transitions across input text characters.
+//   4. Format and stream rendered ANSI sequences or structured JSON telemetry.
 
-fn render_help() -> String {
-    return "oogradient 0.1.0 (openOODA sovereign theme & styling)\n"
-        + "usage: oogradient [options] [ARGUMENTS]...\n\n"
-        + "Applies smooth TrueColor color gradient interpolation across lines of text.\n\n"
-        + "Options:\n"
-        + "  -h, --help           display this help and exit\n"
-        + "  -v, --version        output version information and exit\n"
-        + "      --json           output formatted as JSON Lines\n"
-        + "      --color <WHEN>   colorize output: auto, always, never [default: auto]\n"
-        + "      --theme <NAME>   override active oote palette\n"
-        + "      --mcp            run as Model Context Protocol stdio server\n";
-}
+import "core/color_types.oo";
+import "core/color_presets.oo";
+import "core/interpolator.oo";
+import "render/render_ansi.oo";
+import "render/render_json.oo";
+import "render/render_demo.oo";
+import "ipc/cli_options.oo";
+import "ipc/mcp_server.oo";
+import "anchor.oo";
 
-fn render_version() -> String {
-    return "oogradient 0.1.0 (openOODA sovereign theme & styling)\n";
-}
-
-fn main(args: List[String]) -> Int {
-    let num_args: Int = list_len(args);
-    let mut i: Int = 0;
-
-    while i < num_args {
-        let arg: String = list_get(args, i);
-        if arg == "-h" || arg == "--help" {
-            print(render_help());
-            return 0;
-        }
-        if arg == "-v" || arg == "--version" {
-            print(render_version());
-            return 0;
-        }
-        if arg == "--mcp" {
-            print("{\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"ready\",\"tool\":\"oogradient\"}}\n");
-            return 0;
-        }
-        i = i + 1;
+fn run_all_tests() -> Bool {
+    if !verify_root_subsystem() {
+        return false;
     }
 
-    print("oogradient: sovereign capability-bounded utility ready\n");
+    let t1_args: List[String] = list_push(list_push(list_new(), "-p"), "sunset");
+    let opts: CliOptions = parse_cli_options(t1_args);
+    if opts.preset_name != "sunset" {
+        return false;
+    }
+
+    let c_red: RgbColor = parse_hex_color("#ff0000");
+    let c_blue: RgbColor = parse_hex_color("#0000ff");
+    let mid_color: RgbColor = interpolate_two_colors(c_red, c_blue, 1, 3);
+    if mid_color.r == 0 || mid_color.b == 0 {
+        return false;
+    }
+
+    let p: GradientPreset = find_preset_by_name("fire");
+    if p.name != "fire" {
+        return false;
+    }
+
+    let span: GradientSpan = build_horizontal_span("Hello openOODA", p.stops);
+    if list_len(span.colors) != chars_len("Hello openOODA") {
+        return false;
+    }
+
+    let rendered: String = render_gradient_span(span, false);
+    if rendered != "Hello openOODA" {
+        return false;
+    }
+
+    return true;
+}
+
+pub fn main(
+    fr: &FsReadCap,
+    _pr: &ProcessCap,
+    _env: &EnvCap,
+    args: List[String]
+) -> Int {
+    let opts: CliOptions = parse_cli_options(args);
+
+    if opts.show_help {
+        print(render_cli_help());
+        return 0;
+    }
+    if opts.show_version {
+        print(render_cli_version());
+        return 0;
+    }
+    if opts.run_test {
+        if run_all_tests() {
+            print("oogradient: internal anchor tests PASSED\n");
+            return 0;
+        } else {
+            print("oogradient: internal anchor tests FAILED\n");
+            return 1;
+        }
+    }
+    if opts.show_mcp {
+        return run_mcp_server(fr);
+    }
+    if opts.show_demo {
+        print(render_gradient_demo(opts.use_color));
+        return 0;
+    }
+    if opts.show_presets {
+        let presets: List[GradientPreset] = get_standard_presets();
+        if opts.json_output {
+            print(presets_to_json(presets) + "\n");
+        } else {
+            let n: Int = list_len(presets);
+            let mut i: Int = 0;
+            while i < n {
+                let p: GradientPreset = list_get(presets, i);
+                let bar: String = render_color_bar(p.stops, 24, opts.use_color);
+                print("  " + p.name + " (" + p.description + ")\n    Ramp: " + bar + "\n");
+                i = i + 1;
+            }
+        }
+        return 0;
+    }
+
+    let mut input_text: String = opts.text;
+    if chars_len(input_text) == 0 {
+        input_text = "openOODA Sovereign TrueColor Gradient Interpolation";
+    }
+
+    let mut stops: List[RgbColor] = list_new();
+    if chars_len(opts.from_color) > 0 && chars_len(opts.to_color) > 0 {
+        stops = list_push(stops, parse_hex_color(opts.from_color));
+        stops = list_push(stops, parse_hex_color(opts.to_color));
+    } else if chars_len(opts.preset_name) > 0 {
+        let p: GradientPreset = find_preset_by_name(opts.preset_name);
+        stops = p.stops;
+    } else {
+        let p: GradientPreset = find_preset_by_name("rainbow");
+        stops = p.stops;
+    }
+
+    let span: GradientSpan = build_horizontal_span(input_text, stops);
+
+    if opts.json_output {
+        print(span_to_json(span) + "\n");
+        return 0;
+    }
+
+    print(render_gradient_span(span, opts.use_color) + "\n");
     return 0;
 }

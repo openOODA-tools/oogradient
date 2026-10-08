@@ -1,0 +1,42 @@
+// # Render Subsystem Anchor
+//
+// Logline: Consolidates and verifies ANSI styling, JSON serialization, and visual showcase renderers.
+//
+// Setup: Pure anchor module validating output presentation engines.
+//
+// Beats:
+//   1. Re-export TrueColor ANSI escape and span rendering engines.
+//   2. Re-export JSON metrics and telemetry formatters.
+//   3. Re-export interactive visual palette showcase generator.
+//   4. Validate render outputs and ANSI string invariants.
+
+import "core/color_types.oo";
+import "core/interpolator.oo";
+import "render_ansi.oo";
+import "render_json.oo";
+import "render_demo.oo";
+
+pub fn verify_render_subsystem() -> Bool {
+    let c: RgbColor = make_rgb(255, 128, 0);
+    let c_json: String = rgb_to_json(c);
+    if chars_len(c_json) == 0 {
+        return false;
+    }
+
+    let mut stops: List[RgbColor] = list_new();
+    stops = list_push(stops, make_rgb(255, 0, 0));
+    stops = list_push(stops, make_rgb(0, 0, 255));
+    let span: GradientSpan = build_horizontal_span("abc", stops);
+
+    let rendered: String = render_gradient_span(span, false);
+    if rendered != "abc" {
+        return false;
+    }
+
+    let demo: String = render_gradient_demo(false);
+    if chars_len(demo) == 0 {
+        return false;
+    }
+
+    return true;
+}

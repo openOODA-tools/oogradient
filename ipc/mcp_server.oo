@@ -1,0 +1,180 @@
+// # Model Context Protocol Stdio Server
+//
+// Logline: Streaming JSON-RPC 2.0 protocol handler providing 5 sovereign TrueColor gradient tools.
+//
+// Setup: Demands &FsReadCap for processing streaming stdio RPC frames with negative-trust parsing.
+//
+// Beats:
+//   1. Handle JSON-RPC lifecycle methods (initialize, ping, tools/list, shutdown).
+//   2. Dispatch tool calls: gradient_apply, gradient_interpolate, gradient_presets, gradient_preview, gradient_demo.
+//   3. Extract request parameters with RFC 8259 unescaping.
+//   4. Format conformant JSON-RPC responses and send to standard output.
+
+import "core/color_types.oo";
+import "core/color_presets.oo";
+import "core/interpolator.oo";
+import "render/render_ansi.oo";
+import "render/render_json.oo";
+import "render/render_demo.oo";
+import "json_field.oo";
+
+fn mcp_success(id: String, result_json: String) -> String {
+    let id_field: String = if chars_len(id) == 0 { "null" } else { id };
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id_field + ",\"result\":" + result_json + "}\n";
+}
+
+fn mcp_error(id: String, code: Int, msg: String) -> String {
+    let id_field: String = if chars_len(id) == 0 { "null" } else { id };
+    return "{\"jsonrpc\":\"2.0\",\"id\":" + id_field + ",\"error\":{\"code\":" + code.to_string() + ",\"message\":\"" + json_str_escape(msg) + "\"}}\n";
+}
+
+fn handle_tools_list(id: String) -> String {
+    let list_json: String = "{\"tools\":["
+        + "{\"name\":\"gradient_apply\",\"description\":\"Apply TrueColor gradient styling across characters of text.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"description\":\"Text to style.\"},\"preset\":{\"type\":\"string\",\"description\":\"Palette preset name.\"},\"from\":{\"type\":\"string\",\"description\":\"Start hex color (#RRGGBB).\"},\"to\":{\"type\":\"string\",\"description\":\"End hex color (#RRGGBB).\"}},\"required\":[\"text\"]}},"
+        + "{\"name\":\"gradient_interpolate\",\"description\":\"Generate discrete intermediate RGB steps along a color ramp.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"steps\":{\"type\":\"integer\",\"description\":\"Total discrete steps.\"},\"from\":{\"type\":\"string\",\"description\":\"Start hex color.\"},\"to\":{\"type\":\"string\",\"description\":\"End hex color.\"},\"preset\":{\"type\":\"string\",\"description\":\"Preset palette name.\"}},\"required\":[\"steps\"]}},"
+        + "{\"name\":\"gradient_presets\",\"description\":\"List all registered gradient presets and descriptive metadata.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}},"
+        + "{\"name\":\"gradient_preview\",\"description\":\"Generate a TrueColor color preview bar block.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"preset\":{\"type\":\"string\",\"description\":\"Preset palette name.\"},\"width\":{\"type\":\"integer\",\"description\":\"Bar width in characters.\"}},\"required\":[\"preset\"]}},"
+        + "{\"name\":\"gradient_demo\",\"description\":\"Run interactive showcase demonstrating all curated gradient presets.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}"
+        + "]}";
+    return mcp_success(id, list_json);
+}
+
+pub fn handle_mcp_message(raw: String) -> String {
+    let method: String = json_extract_str_field(raw, "method");
+    let id_str: String = json_extract_str_field(raw, "id");
+    let id_val: String = if chars_len(id_str) > 0 { "\"" + id_str + "\"" } else { json_extract_int_field(raw, "id", 1).to_string() };
+
+    if method == "initialize" {
+        let init_result: String = "{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"oogradient\",\"version\":\"0.2.0\"}}";
+        return mcp_success(id_val, init_result);
+    }
+    if method == "ping" {
+        return mcp_success(id_val, "{}");
+    }
+    if method == "tools/list" {
+        return handle_tools_list(id_val);
+    }
+    if method == "tools/call" {
+        let tool_name: String = json_extract_str_field(raw, "name");
+
+        if tool_name == "gradient_apply" {
+            let text: String = json_extract_str_field(raw, "text");
+            let preset_name: String = json_extract_str_field(raw, "preset");
+            let from_hex: String = json_extract_str_field(raw, "from");
+            let to_hex: String = json_extract_str_field(raw, "to");
+
+            let mut stops: List[RgbColor] = list_new();
+            if chars_len(from_hex) > 0 && chars_len(to_hex) > 0 {
+                stops = list_push(stops, parse_hex_color(from_hex));
+                stops = list_push(stops, parse_hex_color(to_hex));
+            } else if chars_len(preset_name) > 0 {
+                let p: GradientPreset = find_preset_by_name(preset_name);
+                stops = p.stops;
+            } else {
+                let p: GradientPreset = find_preset_by_name("rainbow");
+                stops = p.stops;
+            }
+
+            let span: GradientSpan = build_horizontal_span(text, stops);
+            let rendered: String = render_gradient_span(span, true);
+            return mcp_success(id_val, "{\"content\":[{\"type\":\"text\",\"text\":\"" + json_str_escape(rendered) + "\"}]}");
+        }
+
+        if tool_name == "gradient_interpolate" {
+            let steps: Int = json_extract_int_field(raw, "steps", 5);
+            let preset_name: String = json_extract_str_field(raw, "preset");
+            let from_hex: String = json_extract_str_field(raw, "from");
+            let to_hex: String = json_extract_str_field(raw, "to");
+
+            let mut stops: List[RgbColor] = list_new();
+            if chars_len(from_hex) > 0 && chars_len(to_hex) > 0 {
+                stops = list_push(stops, parse_hex_color(from_hex));
+                stops = list_push(stops, parse_hex_color(to_hex));
+            } else if chars_len(preset_name) > 0 {
+                let p: GradientPreset = find_preset_by_name(preset_name);
+                stops = p.stops;
+            } else {
+                let p: GradientPreset = find_preset_by_name("sunset");
+                stops = p.stops;
+            }
+
+            let ramp: List[RgbColor] = generate_gradient_ramp(stops, steps);
+            let json_body: String = ramp_to_json(ramp);
+            return mcp_success(id_val, "{\"content\":[{\"type\":\"text\",\"text\":\"" + json_str_escape(json_body) + "\"}]}");
+        }
+
+        if tool_name == "gradient_presets" {
+            let presets: List[GradientPreset] = get_standard_presets();
+            let json_body: String = presets_to_json(presets);
+            return mcp_success(id_val, "{\"content\":[{\"type\":\"text\",\"text\":\"" + json_str_escape(json_body) + "\"}]}");
+        }
+
+        if tool_name == "gradient_preview" {
+            let preset_name: String = json_extract_str_field(raw, "preset");
+            let width: Int = json_extract_int_field(raw, "width", 32);
+            let p: GradientPreset = find_preset_by_name(preset_name);
+            let preview_bar: String = render_color_bar(p.stops, width, true);
+            return mcp_success(id_val, "{\"content\":[{\"type\":\"text\",\"text\":\"" + json_str_escape(preview_bar) + "\"}]}");
+        }
+
+        if tool_name == "gradient_demo" {
+            let showcase: String = render_gradient_demo(false);
+            return mcp_success(id_val, "{\"content\":[{\"type\":\"text\",\"text\":\"" + json_str_escape(showcase) + "\"}]}");
+        }
+
+        return mcp_error(id_val, -32601, "Unknown tool: " + tool_name);
+    }
+    if method == "shutdown" {
+        return mcp_success(id_val, "{}");
+    }
+    if method == "exit" {
+        return "";
+    }
+
+    return mcp_error(id_val, -32601, "Method not found: " + method);
+}
+
+fn find_newline_pos(s: String) -> Int {
+    let n: Int = chars_len(s);
+    let mut i: Int = 0;
+    while i < n {
+        if byte_at(s, i) == 10 {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+pub fn run_mcp_server(fs: &FsReadCap) -> Int {
+    let mut buf: String = "";
+    let mut running: Bool = true;
+
+    while running {
+        let r: Result[String, String] = oo_read_stdin_chunk(fs, 4096);
+        if !r.is_ok() {
+            running = false;
+        } else {
+            let chunk: String = match r { Ok(s) => s, Err(_) => "" };
+            if chars_len(chunk) == 0 {
+                running = false;
+            } else {
+                buf = buf + chunk;
+                let mut nl_pos: Int = find_newline_pos(buf);
+                while nl_pos >= 0 {
+                    let line: String = str_slice(buf, 0, nl_pos);
+                    buf = str_slice(buf, nl_pos + 1, chars_len(buf));
+                    let trimmed: String = str_trim(line);
+                    if chars_len(trimmed) > 0 {
+                        let resp: String = handle_mcp_message(trimmed);
+                        if chars_len(resp) > 0 {
+                            print(resp);
+                        }
+                    }
+                    nl_pos = find_newline_pos(buf);
+                }
+            }
+        }
+    }
+    return 0;
+}

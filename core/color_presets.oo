@@ -1,0 +1,95 @@
+// # Color Gradient Palettes Database
+//
+// Logline: Curated database of multi-stop TrueColor gradient presets for terminal styling.
+//
+// Setup: Pure dataset provider configuring rich color stops for recognized gradient themes.
+//
+// Beats:
+//   1. Define primary multi-stop presets: rainbow, sunset, cyberpunk, neon.
+//   2. Define atmospheric and elemental presets: aurora, plasma, ocean, fire.
+//   3. Provide full catalog enumerator returning all registered presets.
+//   4. Provide case-insensitive preset resolver by name with safe fallback.
+
+import "color_types.oo";
+
+pub fn get_standard_presets() -> List[GradientPreset] {
+    let mut list: List[GradientPreset] = list_new();
+
+    // Rainbow (7 stops)
+    let mut rainbow_stops: List[RgbColor] = list_new();
+    rainbow_stops = list_push(rainbow_stops, make_rgb(255, 0, 0));
+    rainbow_stops = list_push(rainbow_stops, make_rgb(255, 127, 0));
+    rainbow_stops = list_push(rainbow_stops, make_rgb(255, 255, 0));
+    rainbow_stops = list_push(rainbow_stops, make_rgb(0, 255, 0));
+    rainbow_stops = list_push(rainbow_stops, make_rgb(0, 255, 255));
+    rainbow_stops = list_push(rainbow_stops, make_rgb(0, 0, 255));
+    rainbow_stops = list_push(rainbow_stops, make_rgb(139, 0, 255));
+    list = list_push(list, make_preset("rainbow", rainbow_stops, "Full visible spectrum rainbow transition"));
+
+    // Sunset (3 stops)
+    let mut sunset_stops: List[RgbColor] = list_new();
+    sunset_stops = list_push(sunset_stops, make_rgb(138, 35, 135));
+    sunset_stops = list_push(sunset_stops, make_rgb(233, 64, 87));
+    sunset_stops = list_push(sunset_stops, make_rgb(242, 113, 33));
+    list = list_push(list, make_preset("sunset", sunset_stops, "Deep purple to crimson and golden orange"));
+
+    // Cyberpunk (3 stops)
+    let mut cyber_stops: List[RgbColor] = list_new();
+    cyber_stops = list_push(cyber_stops, make_rgb(0, 240, 255));
+    cyber_stops = list_push(cyber_stops, make_rgb(176, 0, 255));
+    cyber_stops = list_push(cyber_stops, make_rgb(255, 0, 127));
+    list = list_push(list, make_preset("cyberpunk", cyber_stops, "Electric cyan to neon purple and hot pink"));
+
+    // Neon (3 stops)
+    let mut neon_stops: List[RgbColor] = list_new();
+    neon_stops = list_push(neon_stops, make_rgb(57, 255, 20));
+    neon_stops = list_push(neon_stops, make_rgb(0, 255, 255));
+    neon_stops = list_push(neon_stops, make_rgb(255, 0, 255));
+    list = list_push(list, make_preset("neon", neon_stops, "High-intensity fluorescent lime, cyan, and magenta"));
+
+    // Aurora (3 stops)
+    let mut aurora_stops: List[RgbColor] = list_new();
+    aurora_stops = list_push(aurora_stops, make_rgb(0, 255, 135));
+    aurora_stops = list_push(aurora_stops, make_rgb(96, 239, 255));
+    aurora_stops = list_push(aurora_stops, make_rgb(0, 97, 255));
+    list = list_push(list, make_preset("aurora", aurora_stops, "Boreal emerald green fading into cyan and night blue"));
+
+    // Plasma (2 stops)
+    let mut plasma_stops: List[RgbColor] = list_new();
+    plasma_stops = list_push(plasma_stops, make_rgb(106, 17, 203));
+    plasma_stops = list_push(plasma_stops, make_rgb(37, 117, 252));
+    list = list_push(list, make_preset("plasma", plasma_stops, "Electric violet-indigo into vivid cobalt blue"));
+
+    // Ocean (2 stops)
+    let mut ocean_stops: List[RgbColor] = list_new();
+    ocean_stops = list_push(ocean_stops, make_rgb(0, 198, 255));
+    ocean_stops = list_push(ocean_stops, make_rgb(0, 114, 255));
+    list = list_push(list, make_preset("ocean", ocean_stops, "Aquamarine turquoise into deep oceanic blue"));
+
+    // Fire (3 stops)
+    let mut fire_stops: List[RgbColor] = list_new();
+    fire_stops = list_push(fire_stops, make_rgb(255, 230, 0));
+    fire_stops = list_push(fire_stops, make_rgb(255, 94, 0));
+    fire_stops = list_push(fire_stops, make_rgb(255, 0, 0));
+    list = list_push(list, make_preset("fire", fire_stops, "Solar yellow through flame orange to incandescent red"));
+
+    return list;
+}
+
+pub fn find_preset_by_name(name: String) -> GradientPreset {
+    let presets: List[GradientPreset] = get_standard_presets();
+    let count: Int = list_len(presets);
+    let clean_name: String = str_trim(name);
+
+    let mut i: Int = 0;
+    while i < count {
+        let p: GradientPreset = list_get(presets, i);
+        if p.name == clean_name {
+            return p;
+        }
+        i = i + 1;
+    }
+
+    // Default fallback to rainbow
+    return list_get(presets, 0);
+}

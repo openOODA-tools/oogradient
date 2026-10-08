@@ -1,0 +1,10 @@
+Package: oogradient
+Version: 0.2.0-1
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: openOODA-tools <ops@openooda.org>
+Description: TRUECOLOR GRADIENT GENERATOR
+ Applies smooth TrueColor color gradient interpolation across lines of text.
+ Capability-bounded openOODA utility with zero ambient authority,
+ multi-stop spectrum generator, and native Model Context Protocol (MCP) surface.

@@ -1,0 +1,42 @@
+// # Gradient Showcase and Visual Demo
+//
+// Logline: Renders an interactive showcase exhibiting all standard TrueColor gradient palettes.
+//
+// Setup: Visual preview generator presenting color stops, color ramps, and sample typographic styling.
+//
+// Beats:
+//   1. Render showcase header banner with stylized typography.
+//   2. Iterate across all 8 standard presets (rainbow, sunset, cyberpunk, etc.).
+//   3. Render color swatch ramp bar for each palette.
+//   4. Apply palette gradient to sample demonstrative sentence.
+
+import "core/color_types.oo";
+import "core/color_presets.oo";
+import "core/interpolator.oo";
+import "render_ansi.oo";
+
+pub fn render_gradient_demo(use_color: Bool) -> String {
+    let mut out: String = "";
+    out = out + "=================================================================\n";
+    out = out + " oogradient 0.2.0 - Sovereign TrueColor Gradient Palettes\n";
+    out = out + "=================================================================\n\n";
+
+    let presets: List[GradientPreset] = get_standard_presets();
+    let n: Int = list_len(presets);
+    let mut i: Int = 0;
+
+    while i < n {
+        let p: GradientPreset = list_get(presets, i);
+        out = out + "  [" + (i + 1).to_string() + "] " + p.name + " - " + p.description + "\n";
+        out = out + "      Ramp:   " + render_color_bar(p.stops, 36, use_color) + "\n";
+
+        let sample_text: String = "The quick brown fox jumps over the lazy dog";
+        let span: GradientSpan = build_horizontal_span(sample_text, p.stops);
+        out = out + "      Sample: " + render_gradient_span(span, use_color) + "\n\n";
+
+        i = i + 1;
+    }
+
+    out = out + "Total registered presets: " + n.to_string() + "\n";
+    return out;
+}

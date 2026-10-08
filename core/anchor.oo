@@ -1,0 +1,39 @@
+// # Core Subsystem Anchor
+//
+// Logline: Consolidates and verifies color types, preset database, and gradient interpolation algorithms.
+//
+// Setup: Pure anchor module verifying core gradient data models and ramp generation.
+//
+// Beats:
+//   1. Re-export color data structures and hex parsing routines.
+//   2. Re-export standard multi-stop gradient presets.
+//   3. Re-export linear interpolation and text span generator functions.
+//   4. Verify core mathematical invariants and preset lookups.
+
+import "color_types.oo";
+import "color_presets.oo";
+import "interpolator.oo";
+
+pub fn verify_core_subsystem() -> Bool {
+    let c1: RgbColor = parse_hex_color("#ff0000");
+    if c1.r != 255 || c1.g != 0 || c1.b != 0 {
+        return false;
+    }
+
+    let preset: GradientPreset = find_preset_by_name("cyberpunk");
+    if preset.name != "cyberpunk" {
+        return false;
+    }
+
+    let ramp: List[RgbColor] = generate_gradient_ramp(preset.stops, 5);
+    if list_len(ramp) != 5 {
+        return false;
+    }
+
+    let span: GradientSpan = build_horizontal_span("TEST", preset.stops);
+    if list_len(span.colors) != 4 {
+        return false;
+    }
+
+    return true;
+}
